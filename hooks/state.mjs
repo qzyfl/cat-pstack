@@ -9,7 +9,7 @@ const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 export function dataDir() {
 	if (process.env.WORKBUDDY_PLUGIN_DATA) return process.env.WORKBUDDY_PLUGIN_DATA;
 	const home = process.env.HOME || os.homedir();
-	return path.join(home, ".workbuddy", "plugins", "data", "pstack");
+	return path.join(home, ".workbuddy", "plugins", "data", "cat-pstack");
 }
 
 function statePath() {
