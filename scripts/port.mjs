@@ -11,6 +11,10 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const UPSTREAM = "https://github.com/cursor/plugins.git";
+// Plugin identity. Renaming here is enough: command prefixes, agent
+// namespacing, and manifest names all derive from these two constants.
+const PLUGIN_NAME = "cat-pstack";
+const UPSTREAM_PLUGIN_NAME = "pstack";
 
 function upstreamCheckout() {
 	const dir = path.join(os.tmpdir(), "pstack-upstream-plugins");
@@ -70,7 +74,7 @@ const STICKY = `
 
 WorkBuddy has no Custom Mode, and it has no Option+Enter or Alt+Enter binding that pins a skill.
 
-When this plugin is installed, \`hooks/hooks.json\` listens for \`UserPromptSubmit\`. A prompt that starts with \`/pstack:poteto-mode\` (or \`/poteto-mode\` on a manual copy) turns sticky mode on for that \`session_id\`. Every later prompt in the session gets this skill injected again until the user sends \`/pstack:poteto-mode off\` or \`exit poteto-mode\`. \`SessionStart\` repeats a short reminder when that session resumes.
+When this plugin is installed, \`hooks/hooks.json\` listens for \`UserPromptSubmit\`. A prompt that starts with \`${PLUGIN_NAME}:poteto-mode\` (or \`/poteto-mode\` on a manual copy) turns sticky mode on for that \`session_id\`. Every later prompt in the session gets this skill injected again until the user sends \`${PLUGIN_NAME}:poteto-mode off\` or \`exit poteto-mode\`. \`SessionStart\` repeats a short reminder when that session resumes.
 
 A copied skill folder under \`~/.workbuddy/skills/\` does not load plugin hooks. There, the mode applies to the message that invoked it. Start the next task by invoking the skill again.
 
@@ -96,14 +100,48 @@ const REPLACEMENTS = [
 	["`~/.cursor/projects/*/`", "`a guessed session directory`"],
 	[".cursor/skills/", ".workbuddy/skills/"],
 	[".cursor-plugin/plugin.json", ".workbuddy-plugin/plugin.json"],
+	// benny (automations pack) lives outside the skill roots and uses its own
+	// Cursor paths. Order matters: the longer, more specific prefixes go first so
+	// `.cursor/automations/benny/` is not left half-rewritten by a shorter rule.
+	[".cursor/automations/benny/", ".workbuddy/automations/benny/"],
+	[".cursor/settings.json", ".workbuddy/settings.json"],
+	[".cursor/benny/", ".workbuddy/benny/"],
+	["point cursor at", "point WorkBuddy at"],
+	["two cursor automations", "two WorkBuddy automations"],
+	["cursor automations", "WorkBuddy automations"],
+	["pointing cursor at", "pointing WorkBuddy at"],
+	["prefer_cursor_actions", "prefer_agent_actions"],
 	[
 		"since a hand-typed `myrepo-worktrees/x` misses one that lives at `.cursor/worktrees/myrepo/x`",
 		"since a hand-typed path misses one that `git worktree list` would have returned",
 	],
 	["`AskQuestion`", "`AskUserQuestion`"],
 	[/\bAskQuestion\b/g, "AskUserQuestion"],
-	['subagent_type: "comment-sicko"', 'subagent_type: "pstack:comment-sicko"'],
-	['subagent_type: "poteto-agent"', 'subagent_type: "pstack:poteto-agent"'],
+	['subagent_type: "comment-sicko"', `subagent_type: "${PLUGIN_NAME}:comment-sicko"`],
+	['subagent_type: "poteto-agent"', `subagent_type: "${PLUGIN_NAME}:poteto-agent"`],
+	// ORDER MATTERS: these whole-sentence readonly rewrites must run BEFORE the
+	// generic `generalPurpose` → `general-purpose` swap and before the blanket
+	// `readonly:` fallbacks below. 3 of the 5 upstream sentences that carry
+	// `readonly` already contain a `subagent_type:` clause, so a blind swap
+	// produces two conflicting subagent_type values in one sentence. Matching on
+	// the untouched upstream text is the only reliable anchor.
+	// (Fixed in cat-pstack; see PORTING.md §"Fixes over the upstream port".)
+	[
+		"Every spawn is a Task subagent with `subagent_type: generalPurpose` and `readonly: true`.",
+		'Every spawn is an Agent subagent with `subagent_type: "Explore"`. Upstream made these read-only; Explore is strictly read-only, which is that requirement.',
+	],
+	[
+		"Each reviewer gets `subagent_type: generalPurpose`, `readonly: true`, and `model` set",
+		'Each reviewer gets `subagent_type: "Explore"` (upstream made these read-only; Explore is strictly read-only) and `model` set',
+	],
+	[
+		"`subagent_type: generalPurpose`, agent mode (`readonly: false`). Reviewers need MCP access",
+		"`subagent_type: general-purpose` (upstream kept agent mode). Reviewers need MCP access",
+	],
+	[
+		"`subagent_type: generalPurpose`, `model` from the `reflect judgment, divergent, synthesizer` line (default `claude-opus-5-5-xhigh`), agent mode (`readonly: false`).",
+		"`subagent_type: general-purpose` (upstream kept agent mode), `model` from the `reflect judgment, divergent, synthesizer` line (default `claude-opus-5-5-xhigh`).",
+	],
 	["generalPurpose", "general-purpose"],
 	[
 		"Every spawn is a Task subagent",
@@ -119,12 +157,15 @@ const REPLACEMENTS = [
 	["Spawn `Task`", "Spawn `Agent`"],
 	["every Task spawn", "every Agent spawn"],
 	["omit Task `model`", "omit Agent `model`"],
+	// Fallbacks for any future upstream sentence that carries `readonly`
+	// without an existing subagent_type clause. The four sentences that DO
+	// carry one are consumed by the ordered rewrites near the top of this table.
 	["`readonly: true`", '`subagent_type: "Explore"`'],
 	["`readonly: false`", '`subagent_type: "general-purpose"`'],
 	[
 		"and readonly strips MCPs",
 		"and Explore is strictly read-only, so use general-purpose when the worker needs MCP",
-	],
+		],
 	[
 		"agent mode (readonly strips MCP)",
 		"agent mode (use general-purpose; Explore is strictly read-only and WorkBuddy does not document it keeping MCP)",
@@ -262,7 +303,7 @@ const REPLACEMENTS = [
 	["agent-transcripts/", "session transcripts (WorkBuddy does not document an agent-transcripts directory) /"],
 	[
 		"mention once that a Custom Mode keeps it on.",
-		"mention once that the plugin hook keeps `/pstack:poteto-mode` on for the rest of the session until `/pstack:poteto-mode off`. WorkBuddy has no Custom Mode.",
+		`mention once that the plugin hook keeps \`${PLUGIN_NAME}:poteto-mode\` on for the rest of the session until \`${PLUGIN_NAME}:poteto-mode off\`. WorkBuddy has no Custom Mode.`,
 		true,
 	],
 	[
@@ -271,18 +312,18 @@ const REPLACEMENTS = [
 		true,
 	],
 	[
-		"pstack is built for Cursor, and it also installs in Claude Code with `/plugin marketplace add cursor/plugins`, then `/plugin install pstack@cursor-plugins`. There, each command takes a `pstack:` prefix, such as `/pstack:poteto-mode`. The [Claude Code adapter](../../docs/harness/claude-code.md) maps the Cursor names, and a step that needs a Cursor-only feature, such as Bugbot or Automations, is skipped with a one-line note.",
-		"This copy is the WorkBuddy port. Plugin commands take a `pstack:` prefix, such as `/pstack:poteto-mode`. The [WorkBuddy adapter](../../docs/harness/workbuddy.md) maps what is left. A step that needs Bugbot or Cursor Automations is skipped with a one-line note. WorkBuddy has no Bugbot and no Cursor Automations.",
+		`pstack is built for Cursor, and it also installs in Claude Code with \`/plugin marketplace add cursor/plugins\`, then \`/plugin install pstack@cursor-plugins\`. There, each command takes a \`pstack:\` prefix, such as \`/pstack:poteto-mode\`. The [Claude Code adapter](../../docs/harness/claude-code.md) maps the Cursor names, and a step that needs a Cursor-only feature, such as Bugbot or Automations, is skipped with a one-line note.`,
+		`This copy is the WorkBuddy port. Plugin commands take a \`${PLUGIN_NAME}:\` prefix, such as \`${PLUGIN_NAME}:poteto-mode\`. The [WorkBuddy adapter](../../docs/harness/workbuddy.md) maps what is left. A step that needs Bugbot or Cursor Automations is skipped with a one-line note. WorkBuddy has no Bugbot and no Cursor Automations.`,
 		true,
 	],
 	[
 		"Other tools can read the skills, because they use the Agent Skills format. But most workflow skills, including `/poteto-mode`, `/how`, `/why`, and `/teach`, spawn Cursor subagents with per-role models, and Custom Modes and `/loop` are Cursor features, so those parts may not work there.",
-		"Manual copies of the skill folders still load, because they use the Agent Skills format. Workflow skills spawn WorkBuddy `Agent` subagents. WorkBuddy has no Custom Mode and no `/loop` command. The plugin hook is what keeps `/pstack:poteto-mode` on. See the adapter.",
+		`Manual copies of the skill folders still load, because they use the Agent Skills format. Workflow skills spawn WorkBuddy \`Agent\` subagents. WorkBuddy has no Custom Mode and no \`/loop\` command. The plugin hook is what keeps \`${PLUGIN_NAME}:poteto-mode\` on. See the adapter.`,
 		true,
 	],
 	[
 		"- Enter on `/poteto-mode` attaches the skill to one message. It fades as the chat moves on.\n- Option+Enter on Mac or Alt+Enter on Windows, or Use as Mode from the skill entry, makes it a Custom Mode. It stays in context every turn until the user exits the mode, and it stays out of casual turns.\n- Cursor's docs list Custom Modes in the Agents Window and the CLI. Elsewhere, start each new task with `/poteto-mode`.",
-		"- Invoking the skill attaches it to that message.\n- With the plugin installed, a prompt that starts with `/pstack:poteto-mode` stays on for the session until `/pstack:poteto-mode off`. WorkBuddy has no Custom Mode.\n- A manual copy has no hook. Start each new task by invoking the skill again.",
+		`- Invoking the skill attaches it to that message.\n- With the plugin installed, a prompt that starts with \`${PLUGIN_NAME}:poteto-mode\` stays on for the session until \`${PLUGIN_NAME}:poteto-mode off\`. WorkBuddy has no Custom Mode.\n- A manual copy has no hook. Start each new task by invoking the skill again.`,
 		true,
 	],
 	[
@@ -307,7 +348,7 @@ const REPLACEMENTS = [
 	],
 	[
 		"| The mode stopped applying after a few turns | It was started with Enter. Start it as a Custom Mode, or start each task with `/poteto-mode`. |",
-		"| The mode stopped applying after a few turns | The plugin hook is off, or this was a manual copy. Start the next task with `/pstack:poteto-mode`, or send that command at the start of a prompt. WorkBuddy has no Custom Mode. |",
+		`| The mode stopped applying after a few turns | The plugin hook is off, or this was a manual copy. Start the next task with \`${PLUGIN_NAME}:poteto-mode\`, or send that command at the start of a prompt. WorkBuddy has no Custom Mode. |`,
 		true,
 	],
 	[
@@ -336,26 +377,26 @@ const GUIDE_INSTALL_START = "## Install the plugin\n\n";
 const GUIDE_INSTALL_END = "## Pick your models";
 const GUIDE_INSTALL = `## Install the plugin
 
-This guide is the WorkBuddy port. Plugin commands use the \`/pstack:\` prefix. WorkBuddy has no \`/add-plugin\` command.
+This guide is the WorkBuddy port. Plugin commands use the \`/${PLUGIN_NAME}:\` prefix. WorkBuddy has no \`/add-plugin\` command.
 
 \`\`\`text
 /plugin marketplace add pstack-pro/pstack-workbuddy
 /plugin install pstack@pstack-workbuddy
 \`\`\`
 
-A manual copy of \`skills/\` into \`~/.workbuddy/skills/\` also loads. That copy has no \`pstack:\` prefix and no sticky-mode hook. The [WorkBuddy adapter](../harness/workbuddy.md) covers the other differences. \`/pstack:setup-pstack\` writes \`~/.workbuddy/pstack-models.md\`. The session hook injects that file. WorkBuddy does not auto-load a rules directory for it.
+A manual copy of \`skills/\` into \`~/.workbuddy/skills/\` also loads. That copy has no \`${PLUGIN_NAME}:\` prefix and no sticky-mode hook. The [WorkBuddy adapter](../harness/workbuddy.md) covers the other differences. \`${PLUGIN_NAME}:setup-pstack\` writes \`~/.workbuddy/pstack-models.md\`. The session hook injects that file. WorkBuddy does not auto-load a rules directory for it.
 
 `;
 
 const CUSTOM_MODE_PARAGRAPH =
 	"From here you can type normal follow-ups. To keep `/poteto-mode` on for the whole chat, pick it from the `/` menu with Option+Enter (Mac) or Alt+Enter (Windows) instead of Enter. That makes it a [Custom Mode](https://cursor.com/docs/skills#using-a-skill-as-a-custom-mode), which stays in context on every turn until you exit it. Custom Modes are available in the Agents Window and the CLI. Plain Enter attaches the skill to one message, and it fades as the chat moves on.";
 const CUSTOM_MODE_REPLACEMENT =
-	"From here you can type normal follow-ups. WorkBuddy has no Custom Mode. With the plugin installed, a later prompt stays in poteto-mode until you send `/pstack:poteto-mode off`. A manual skill copy applies the skill to one message. Invoke it again on the next task.";
+	`From here you can type normal follow-ups. WorkBuddy has no Custom Mode. With the plugin installed, a later prompt stays in poteto-mode until you send \`${PLUGIN_NAME}:poteto-mode off\`. A manual skill copy applies the skill to one message. Invoke it again on the next task.`;
 
 const SHORT_CUSTOM =
 	"Short works because the playbook holds the structure, and a Custom Mode keeps `/poteto-mode` in context on every turn.";
 const SHORT_CUSTOM_REPLACEMENT =
-	"Short works because the playbook holds the structure, and the plugin hook keeps `/pstack:poteto-mode` in context on every turn. WorkBuddy has no Custom Mode.";
+	`Short works because the playbook holds the structure, and the plugin hook keeps \`${PLUGIN_NAME}:poteto-mode\` in context on every turn. WorkBuddy has no Custom Mode.`;
 
 const LOOP_BULLET =
 	"- `/loop` is Cursor's built-in wake mechanism, not a pstack skill. The [Autonomous run playbook](../../skills/poteto-mode/playbooks/autonomous-run.md) uses it to re-check the finish condition on events or a heartbeat.";
@@ -365,7 +406,7 @@ const LOOP_BULLET_REPLACEMENT =
 const PROJECTS_PARAGRAPH =
 	"A [Cursor Project](https://cursor.com/blog/projects) gives one coordinator agent a persistent thread. The coordinator doesn't write code. It directs subagents, which run in the cloud by default, so the work continues when your laptop is closed. That's the shape the Orchestrate playbook expects. Start your prompts to the coordinator with `/poteto-mode`, and the subagents it spawns follow the playbooks.";
 const PROJECTS_REPLACEMENT =
-	"WorkBuddy has no Cursor Project object and no cloud agents that keep running with the laptop closed. Orchestrate is a local coordinator chat plus subagents in git worktrees. Start the coordinator with `/pstack:poteto-mode`. The work stops when that session stops.";
+	`WorkBuddy has no Cursor Project object and no cloud agents that keep running with the laptop closed. Orchestrate is a local coordinator chat plus subagents in git worktrees. Start the coordinator with \`${PLUGIN_NAME}:poteto-mode\`. The work stops when that session stops.`;
 
 function transform(text) {
 	let out = text;
@@ -399,7 +440,7 @@ function skillNames() {
 
 function prefixCommands(text, names) {
 	const re = new RegExp(`(?<=^|[\\s\`(\\[\"'])/(${names.join("|")})(?![\\w/:-])`, "gm");
-	return text.replace(re, "/pstack:$1");
+	return text.replace(re, `/${PLUGIN_NAME}:$1`);
 }
 
 function editFrontmatter(text, edit) {
@@ -469,6 +510,14 @@ const names = skillNames();
 copyTree(path.join(src, "skills"), path.join(root, "skills"));
 copyTree(path.join(src, "agents"), path.join(root, "agents"));
 copyTree(path.join(src, "docs", "guide"), path.join(root, "docs", "guide"));
+// benny: the dormant Slack triage / repro automation pack. The upstream
+// WorkBuddy port dropped this directory entirely (it is not a skill root, so a
+// skills-only copy silently loses 12 files). cat-pstack restores it. Its
+// WORKBUDDY.md capability matrix is preserved across regeneration below.
+const bennyKeep = path.join(root, "automations", "benny", "WORKBUDDY.md");
+const bennyKeepBody = fs.existsSync(bennyKeep) ? fs.readFileSync(bennyKeep, "utf8") : null;
+copyTree(path.join(src, "automations", "benny"), path.join(root, "automations", "benny"));
+if (bennyKeepBody !== null) fs.writeFileSync(bennyKeep, bennyKeepBody);
 
 const SH_FROM = `# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts.
 slug=$(printf '%s' "$main_wt" | sed 's#^/##; s#/#-#g')
@@ -477,9 +526,9 @@ const SH_TO = `# WorkBuddy does not use Cursor's slug/agent-transcripts layout.
 # No session directory is confirmed for this script. LAST_CHAT stays "-".
 transcripts=""`;
 
-for (const dir of ["skills", "agents", "docs/guide"]) {
+for (const dir of ["skills", "agents", "docs/guide", "automations/benny"]) {
 	walk(path.join(root, dir), (file) => {
-		if (file.endsWith(".md")) {
+		if (file.endsWith(".md") || file.endsWith(".yaml") || file.endsWith(".yml")) {
 			let text = prefixCommands(transform(fs.readFileSync(file, "utf8")), names);
 			const rel = path.relative(root, file);
 			if (rel.startsWith(`skills${path.sep}`) && rel.endsWith(`${path.sep}SKILL.md`)) {
@@ -547,7 +596,7 @@ function bump(file) {
 	if (typeof json.version === "string") json.version = version;
 	if (Array.isArray(json.plugins)) {
 		for (const plugin of json.plugins) {
-			if (plugin && plugin.name === "pstack") plugin.version = version;
+			if (plugin && plugin.name === PLUGIN_NAME) plugin.version = version;
 		}
 	}
 	fs.writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
@@ -580,9 +629,9 @@ function lineHits(text, re) {
 }
 
 const hardHits = [];
-for (const dir of ["skills", "agents", "docs/guide"]) {
+for (const dir of ["skills", "agents", "docs/guide", "automations/benny"]) {
 	walk(path.join(root, dir), (file) => {
-		if (!file.endsWith(".md") && !file.endsWith(".sh")) return;
+		if (!file.endsWith(".md") && !file.endsWith(".sh") && !file.endsWith(".yaml")) return;
 		const text = fs.readFileSync(file, "utf8");
 		for (const [re, label] of HARD) {
 			for (const line of lineHits(text, re)) hardHits.push(`${path.relative(root, file)}: ${label}: ${line}`);

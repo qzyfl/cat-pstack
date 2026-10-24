@@ -1,4 +1,10 @@
-# Porting pstack to WorkBuddy
+# cat-pstack — porting pstack to WorkBuddy
+
+`cat-pstack` is a fork of [`pstack-pro/pstack-workbuddy`](https://github.com/pstack-pro/pstack-workbuddy)
+(`aabc358`), which in turn ports [`cursor/plugins` → `pstack/`](https://github.com/cursor/plugins/tree/main/pstack).
+The fork exists because the upstream port shipped four defects and dropped one subsystem;
+§[Fixes over the upstream port](#fixes-over-the-upstream-port) lists every one, with the
+check that now prevents it from returning.
 
 This file is the adaptation record. Skill and agent bodies stay in English. Regenerate them with `node scripts/port.mjs`; do not hand-edit `skills/`, `agents/`, `docs/guide/`, or `LICENSE`.
 
@@ -19,12 +25,88 @@ Recorded in `UPSTREAM.json`. Upstream's host adapter is `docs/harness/claude-cod
 
 Layout cues came from [pstack-claude](https://github.com/pstack-pro/pstack-claude) and [pstack-pi](https://github.com/pstack-pro/pstack-pi): a manifest, a marketplace file, Node hooks, `overrides/`, and `UPSTREAM.json`. Tool names in the skill text are rewritten to `Agent`, `AskUserQuestion`, and `Bash`.
 
+## Fixes over the upstream port
+
+Forked from `pstack-pro/pstack-workbuddy` @ `aabc358`. Four defects and one omission, all
+reproduced before fixing and all covered by `scripts/validate.mjs` afterwards.
+
+### 1. Two conflicting `subagent_type` values in one sentence
+
+`port.mjs` swapped `` `readonly: true` `` → `` `subagent_type: "Explore"` `` unconditionally, but
+three of the five upstream sentences that carry `readonly` already contain a `subagent_type:`
+clause. The result was self-contradictory instruction text:
+
+```text
+Every spawn is an Agent subagent with `subagent_type: general-purpose` and `subagent_type: "Explore"`.
+```
+
+Hit files: `skills/how/SKILL.md`, `skills/interrogate/SKILL.md`, and two lines in
+`skills/reflect/SKILL.md` (the last two produced a duplicated `general-purpose` instead).
+`how` runs on every nontrivial change and `interrogate` is the multi-model review entry point,
+so both are load-bearing.
+
+**Fix:** four whole-sentence rewrites, ordered *before* the generic `generalPurpose` swap and
+before the blanket `readonly:` fallbacks. Each keeps the upstream intent:
+
+| File | Upstream | Now | Why |
+| --- | --- | --- | --- |
+| `how` | `generalPurpose` + `readonly: true` | `Explore` | Explore is strictly read-only |
+| `interrogate` | `generalPurpose` + `readonly: true` | `Explore` | reviewers must not write |
+| `reflect` (×2) | `generalPurpose` + `readonly: false` | `general-purpose` | reviewers need MCP, which Explore lacks |
+
+The replacement text deliberately avoids the literal `` `readonly: `` string, so the later
+fallback rules cannot match it a second time. That double-match was a real intermediate bug.
+
+**Guard:** `validate.mjs` fails on any single line carrying more than one distinct
+`subagent_type` value.
+
+### 2. The benny automation pack was dropped entirely
+
+Upstream ships `automations/benny/` — 12 files, ~1,528 lines: a Slack issue-triage automation
+and a reproduce-and-fix automation, plus their setup skill, references, and templates. The
+port copied only `skills/`, `agents/`, and `docs/guide/`, so the whole pack vanished silently.
+
+**Fix:** `port.mjs` now copies `automations/benny`, runs the same text transforms over it, and
+preserves a hand-written `automations/benny/WORKBUDDY.md` across regeneration. `bundle.mjs`
+includes `automations` in `COPY_DIRS`.
+
+`WORKBUDDY.md` is new and states the capability matrix honestly: WorkBuddy has scheduled
+automations (the replacement for Cursor Automations) but no Slack event webhook, so the trigger
+degrades to polling. It also lists the four things to prove on a harmless test report before
+enabling either automation.
+
+**Guard:** `validate.mjs` fails if the pack or any of its seven key files is missing.
+
+### 3. Renamed to `cat-pstack`
+
+The plugin is `cat-pstack` and every command is `/cat-pstack:<skill>`. 191 namespace
+references across 26 files, plus the hooks, the two manifests, and the validator.
+
+`port.mjs` now derives the name from two constants (`PLUGIN_NAME`, `UPSTREAM_PLUGIN_NAME`);
+renaming again is a one-line change rather than another 191-reference sweep.
+
+**Guard:** `validate.mjs` fails on any stale `/pstack:` prefix, and checks that both
+`plugin.json` and `marketplace.json` agree on `cat-pstack`.
+
+### 4. `validate.mjs` hard-coded the old plugin name
+
+`plugin.name !== "pstack"` and a `"pstack"` literal in the marketplace bump meant the validator
+could never pass after the rename, and would have masked real failures.
+
+**Fix:** both now compare against `PLUGIN_NAME`.
+
+### Correcting my own earlier claim
+
+An earlier analysis of this repository reported `disable-model-invocation` on 56 of 58 skills,
+implying the port lost a policy flag. That was a counting error on my side: the port matches
+upstream exactly at **57 of 58** (only `setup-pstack` is model-invocable). No fix was needed.
+
 ## What the script does
 
 `node scripts/port.mjs [path/to/plugins/pstack]` copies `skills/`, `agents/`, and `docs/guide/` from the checkout, then:
 
 1. Rewrites Cursor tool names, paths, and feature sentences that have a WorkBuddy equivalent.
-2. Prefixes skill slash commands with `pstack:` so they match plugin namespacing. The sticky hook still accepts a bare `/poteto-mode`, for a manual copy.
+2. Prefixes skill slash commands with `cat-pstack:` so they match plugin namespacing. The sticky hook still accepts a bare `/poteto-mode`, for a manual copy.
 3. Drops skill frontmatter keys the manifest format does not use: `icon`, `color`, `paths`, `mode`, `reminder`. Forces `name` to the directory name.
 4. When `paths:` was removed, adds one body line telling the model to apply the skill on `.ts` / `.tsx` edits. That is `typescript-best-practices`.
 5. Maps agent `is_background:` to `background: true`.
@@ -56,8 +138,8 @@ The manifest is `.workbuddy-plugin/plugin.json`. The marketplace file is `.workb
 | `environment: "cloud"` | `isolation: "worktree"` (a local git worktree, not a cloud machine) |
 | `environment: "local"` | omit `isolation` |
 | `cloud_base_branch` | tell the worker which branch to check out |
-| `subagent_type: "poteto-agent"` | `pstack:poteto-agent` |
-| `subagent_type: "comment-sicko"` | `pstack:comment-sicko` |
+| `subagent_type: "poteto-agent"` | `cat-pstack:poteto-agent` |
+| `subagent_type: "comment-sicko"` | `cat-pstack:comment-sicko` |
 | `Shell` in the tool list sentence | `Bash` |
 | Open a todolist | `TaskCreate`, with an in-reply list if that tool is absent |
 | `~/.cursor/rules/pstack-models.mdc` | `~/.workbuddy/pstack-models.md` |
@@ -70,7 +152,7 @@ The manifest is `.workbuddy-plugin/plugin.json`. The marketplace file is `.workb
 | Built-in babysit | Babysit playbook |
 | `/loop` | finish-condition loop |
 | Cursor cloud agents / dashboard | worktree subagents; reattach by PR and branch |
-| `cursor-team-kit` `/deslop` | review the diff, then `/pstack:no-comments` |
+| `cursor-team-kit` `/deslop` | review the diff, then `/cat-pstack:no-comments` |
 | `control-ui` / `control-cli` | a project `verify-*` skill when one exists |
 | Resume / message / queue on an Agent id | spawn a fresh agent and paste the prior report |
 | Cursor Plan Mode / Projects | the built-in plan interaction mode if the user already turned it on. This plugin does not switch it. |
@@ -95,7 +177,7 @@ WorkBuddy has no Custom Mode and no Option+Enter binding.
 
 `hooks/hooks.json` registers two command hooks. The command placeholder is `${CLAUDE_PLUGIN_ROOT}`, which the plugin loader substitutes with the plugin directory at load time. The scripts also resolve the plugin root from their own file path.
 
-- `UserPromptSubmit` runs `hooks/sticky-poteto.mjs`. A prompt that **starts with** `/pstack:poteto-mode` or `/poteto-mode` sets that `session_id` on. `/pstack:poteto-help` does not. Later prompts get the skill body until `/pstack:poteto-mode off` or `exit poteto-mode`.
+- `UserPromptSubmit` runs `hooks/sticky-poteto.mjs`. A prompt that **starts with** `/cat-pstack:poteto-mode` or `/poteto-mode` sets that `session_id` on. `/cat-pstack:poteto-help` does not. Later prompts get the skill body until `/cat-pstack:poteto-mode off` or `exit poteto-mode`.
 - `SessionStart` runs `hooks/session-start.mjs`. It injects `docs/harness/workbuddy.md`, `~/.workbuddy/pstack-models.md` when that file exists, `transcript_path`, and a one-line reminder if that session is still on.
 
 State is `${WORKBUDDY_PLUGIN_DATA}/sticky-sessions.json` when that variable is set, otherwise `~/.workbuddy/plugins/data/pstack/sticky-sessions.json`. Rows older than 14 days are dropped. Hook stdout is `{ "continue": true, "hookSpecificOutput": { "hookEventName", "additionalContext" } }`.
@@ -123,7 +205,7 @@ Hard failures: leftover `AskQuestion`, `generalPurpose`, a `.cursor/` path, `pst
 ## Verified without the desktop app
 
 - `node scripts/validate.mjs`.
-- Hook fixtures: help does not stick, `/pstack:poteto-mode` sticks, a later turn re-injects, another `session_id` stays off, `off` clears, bare `/poteto-mode` sticks. The model file is read from `~/.workbuddy/pstack-models.md`.
+- Hook fixtures: help does not stick, `/cat-pstack:poteto-mode` sticks, a later turn re-injects, another `session_id` stays off, `off` clears, bare `/poteto-mode` sticks. The model file is read from `~/.workbuddy/pstack-models.md`.
 - `node scripts/bundle.mjs` writes `dist/pstack-<version>.zip` with `SKILL.md` at the zip root and each skill at `skills/<name>/SKILL.md`. The build fails when the file count passes 200, the zip or its uncompressed size passes 10MB, the version is not SemVer, or the SkillHub slug is not `pstack`.
 - SkillHub upload allows only `.md`, `.txt`, `.json`, `.ts`, `.mjs`, `.js`, `.sh`, `.py`, `.yaml`, and `.yml`. The zip ships `LICENSE.md`, `NOTICE.md`, `skills/poteto-mode/scripts/watch-pr/watch-pr.ts` (the bun launcher, same bytes), and `skills/show-me-your-work/references/decision-log-template.txt` (same bytes as the `.tsv`). It omits guide images, `skills/poteto-mode/scripts/bun.lock` (bun recreates it), and `skills/statechart/scripts/test/` (fixtures, including `.mmd`). Bundled `docs/guide/*.md` copies drop image tags. Repo files keep their original names. Skill bodies are not edited.
 
@@ -136,7 +218,7 @@ Hard failures: leftover `AskQuestion`, `generalPurpose`, a `.cursor/` path, `pst
 
 - Adding this GitHub repo or a zip from the desktop plugin screen. The owner's `known_marketplaces.json` stores markets as `directory` or `zip`. The in-app button labels were not clicked.
 - Whether a copied skill shows up before restart. `~/.workbuddy/.skill-list-cache.json` exists. An existing skill such as `grill-me` also has `_skillhub_meta.json`. This port does not write that file. It is unknown whether a hand-copied skill needs it.
-- Plugin commands `/pstack:poteto-mode` and `/pstack:setup-pstack` inside the app, the sticky hook, and whether setup wrote `~/.workbuddy/pstack-models.md` from the owner's `models.json`. The bundle commands `/poteto-mode` and `/setup-pstack` did run. The written model file was not inspected.
+- Plugin commands `/cat-pstack:poteto-mode` and `/cat-pstack:setup-pstack` inside the app, the sticky hook, and whether setup wrote `~/.workbuddy/pstack-models.md` from the owner's `models.json`. The bundle commands `/poteto-mode` and `/setup-pstack` did run. The written model file was not inspected.
 - Whether `session_id` stays stable across resume. Sticky state is keyed by that id.
 - `TaskCreate`, `EnterWorktree`, and `AskUserQuestion` on the desktop. Those names are carried as the tool names the skills already use. They were not called against the app.
 - Plugin `hooks/hooks.json` actually running under WorkBuddy 5.8.3. The hook command relies on the loader substituting `${CLAUDE_PLUGIN_ROOT}`.

@@ -13,7 +13,7 @@ disable-model-invocation: true
 
 Mine the current conversation for durable learnings, then route them into skill edits.
 
-Invoke when the user says "reflect" or "/pstack:reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
+Invoke when the user says "reflect" or "/cat-pstack:reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
 
 ## 1. Locate the active transcript
 
@@ -27,7 +27,7 @@ That covers the legacy flat (`<id>.jsonl`), current nested (`<id>/<id>.jsonl`), 
 
 ## 2. Spawn three reviewers in parallel
 
-One message, three `Agent` calls, `subagent_type: general-purpose`, agent mode (`subagent_type: "general-purpose"`). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references, and Explore is strictly read-only, so use general-purpose when the worker needs MCP.
+One message, three `Agent` calls, `subagent_type: general-purpose` (upstream kept agent mode). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references, and Explore is strictly read-only, so use general-purpose when the worker needs MCP.
 
 Each reviewer and the synthesizer name a role line in the `pstack-models.md` rule and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the Agent tool rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **poteto-mode** skill.
 
@@ -41,7 +41,7 @@ Pass each template verbatim, substituting the transcript path or digest where ma
 
 ## 3. Synthesize
 
-One `Agent` call, `subagent_type: general-purpose`, `model` from the `reflect judgment, divergent, synthesizer` line (default `claude-opus-5-5-xhigh`), agent mode (`subagent_type: "general-purpose"`). It spot-verifies citations through MCP, and Explore is strictly read-only, so use general-purpose when the worker needs MCP. Pass `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. It returns an Accepted / Rejected / Backlog list.
+One `Agent` call, `subagent_type: general-purpose` (upstream kept agent mode), `model` from the `reflect judgment, divergent, synthesizer` line (default `claude-opus-5-5-xhigh`). It spot-verifies citations through MCP, and Explore is strictly read-only, so use general-purpose when the worker needs MCP. Pass `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. It returns an Accepted / Rejected / Backlog list.
 
 ## 4. Structural enforcement check
 

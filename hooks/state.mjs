@@ -54,10 +54,10 @@ export function setOn(sessionId, on) {
 }
 
 // Only a prompt that starts with the slash command toggles the mode.
-// `/pstack:poteto-help what is /poteto-mode` must not turn it on.
+// `/cat-pstack:poteto-help what is /poteto-mode` must not turn it on.
 export function commandAction(prompt) {
 	const head = String(prompt ?? "").trim();
-	const cmd = head.match(/^\/(?:pstack:)?([a-z0-9-]+)\b([\s\S]*)$/i);
+	const cmd = head.match(/^\/(?:cat-pstack:)?([a-z0-9-]+)\b([\s\S]*)$/i);
 	if (cmd && cmd[1].toLowerCase() === "poteto-mode") {
 		return /^off\b/i.test(cmd[2].trim()) ? "off" : "on";
 	}

@@ -1,24 +1,24 @@
 ---
-name: pstack
-slug: pstack
+name: cat-pstack
+slug: cat-pstack
 version: 0.15.32
-displayName: "pstack"
-summary: "pstack, Lauren Tan's (poteto) agent workflow, ported to WorkBuddy: 58 skills (poteto-mode, playbooks, principles, review and verification tools) in one install."
-description: "Use when the user wants pstack or poteto-mode on WorkBuddy, asks which pstack skill or playbook fits a task, how to set up pstack, or a /pstack:<name> or /<name> pstack command is not visible. Entry point and index for the 58 bundled pstack skills."
-tags: [pstack, poteto, workbuddy, workflow, agent-skills, code-review, verification]
+displayName: "cat-pstack"
+summary: "cat-pstack, Lauren Tan's (poteto) agent workflow, ported to WorkBuddy: 58 skills (poteto-mode, playbooks, principles, review and verification tools) in one install."
+description: "Use when the user wants pstack or poteto-mode on WorkBuddy, asks which pstack skill or playbook fits a task, how to set up pstack, or a /cat-pstack:<name> or /<name> pstack command is not visible. Entry point and index for the 58 bundled pstack skills."
+tags: [cat-pstack, pstack, poteto, workbuddy, workflow, agent-skills, code-review, verification]
 license: MIT
-homepage: https://github.com/pstack-pro/pstack-workbuddy
+homepage: https://github.com/qzyfl/cat-pstack
 ---
 
-# pstack for WorkBuddy
+# cat-pstack for WorkBuddy
 
 pstack is poteto's agent style packaged as skills: concise, detailed replies, deliberate subagents, unslopped prose, simple code, and verified work. `/poteto-mode` matches a task to a playbook, copies the playbook's steps into the todo list, and runs the other skills as the steps need them. This bundle is the community WorkBuddy port of pstack 0.15.32.
 
 ## What is installed
 
-All 58 pstack skills sit next to this file in `skills/<name>/SKILL.md`. WorkBuddy discovers them as their own skills, so each one is a slash command under its bare name, such as `/poteto-mode`. This bundle is not the plugin, so there is no `pstack:` prefix.
+All 58 pstack skills sit next to this file in `skills/<name>/SKILL.md`. WorkBuddy discovers them as their own skills, so each one is a slash command under its bare name, such as `/poteto-mode`. This bundle is not the plugin, so there is no `cat-pstack:` prefix.
 
-The skill text uses the plugin form `/pstack:<name>`. When a skill says `/pstack:<name>`, use `/<name>`. When it says `pstack:poteto-agent` or `pstack:comment-sicko`, see "Missing compared with the full plugin" below.
+The skill text uses the plugin form `/cat-pstack:<name>`. When a skill says `/cat-pstack:<name>`, use `/<name>`. When it says `cat-pstack:poteto-agent` or `cat-pstack:comment-sicko`, see "Missing compared with the full plugin" below.
 
 ## Start
 
@@ -104,7 +104,7 @@ This folder is the `<plugin>` root that the skills mean. It holds `skills/`, `do
 ## Missing compared with the full plugin
 
 - The plugin's hooks are not loaded from a skill install. `/poteto-mode` does not stay on across turns, so invoke it again on each new task. The `SessionStart` hook that injects `~/.workbuddy/pstack-models.md` is also absent. Read that file yourself when a skill needs a model role.
-- The plugin agents `poteto-agent` and `comment-sicko` are not registered. Their definitions are in `agents/` as reference docs. When a skill asks for `subagent_type: "pstack:poteto-agent"` or `"pstack:comment-sicko"`, spawn a `general-purpose` Agent. Paste the body of `agents/poteto-agent.md` or `agents/comment-sicko.md` into its prompt, along with the absolute path of `skills/poteto-mode/SKILL.md` in this folder. Say that you substituted the agent.
+- The plugin agents `poteto-agent` and `comment-sicko` are not registered. Their definitions are in `agents/` as reference docs. When a skill asks for `subagent_type: "cat-pstack:poteto-agent"` or `"cat-pstack:comment-sicko"`, spawn a `general-purpose` Agent. Paste the body of `agents/poteto-agent.md` or `agents/comment-sicko.md` into its prompt, along with the absolute path of `skills/poteto-mode/SKILL.md` in this folder. Say that you substituted the agent.
 
 For sticky mode and the real agents, install the plugin. Add the marketplace `pstack-pro/pstack-workbuddy` as a git repo, then install `pstack@pstack-workbuddy`:
 

@@ -2,7 +2,7 @@
 
 pstack skills were written for Cursor. This port rewrites the names that have a WorkBuddy equivalent. Where a line still uses a Cursor name, apply this file and say what you did. `<plugin>` is the directory that contains `skills/` and this file. Never pass a field or value the tool schema rejects.
 
-Plugin commands are `/pstack:<skill>`. A manual copy into `~/.workbuddy/skills/` registers `/<skill>` with no prefix. The skill text uses the plugin form.
+Plugin commands are `/cat-pstack:<skill>`. A manual copy into `~/.workbuddy/skills/` registers `/<skill>` with no prefix. The skill text uses the plugin form.
 
 ## Tools
 
@@ -11,7 +11,7 @@ Plugin commands are `/pstack:<skill>`. A manual copy into `~/.workbuddy/skills/`
 | `Task` | `Agent`. Several `Agent` calls in one message run in parallel. `run_in_background: true` is an Agent parameter when the tool schema lists it. |
 | `AskQuestion` | `AskUserQuestion`. |
 | Open a todolist | `TaskCreate` and `TaskUpdate` when those tools exist. If they are absent, keep the list in the reply and update it at each phase. |
-| Run another pstack skill | Read `<plugin>/skills/<name>/SKILL.md`, or invoke `/pstack:<name>` (plugin install) or `/<name>` (manual copy). |
+| Run another pstack skill | Read `<plugin>/skills/<name>/SKILL.md`, or invoke `/cat-pstack:<name>` (plugin install) or `/<name>` (manual copy). |
 | `Shell` | `Bash`. |
 | `Grep`, `Glob`, `Read`, `Edit`, `Write` | Same names. |
 
@@ -20,7 +20,7 @@ Plugin commands are `/pstack:<skill>`. A manual copy into `~/.workbuddy/skills/`
 | Cursor | WorkBuddy |
 | --- | --- |
 | `subagent_type: generalPurpose` | `general-purpose`. It can edit files. |
-| `poteto-agent`, `comment-sicko` | `pstack:poteto-agent`, `pstack:comment-sicko` when the plugin is installed. Manual copies use the names without the prefix. |
+| `poteto-agent`, `comment-sicko` | `cat-pstack:poteto-agent`, `cat-pstack:comment-sicko` when the plugin is installed. Manual copies use the names without the prefix. |
 | `readonly: true` | `subagent_type: "Explore"`. Explore is strictly read-only. When the worker needs MCP, use `general-purpose` and tell it not to edit, then check `git status`. |
 | `readonly: false` / agent mode | `general-purpose`. |
 | `environment: "cloud"` | `isolation: "worktree"` on a plugin agent, or `EnterWorktree` when that tool exists. This is a local git worktree, not a Cursor cloud machine. |
@@ -39,7 +39,7 @@ WorkBuddy's ask interaction mode is a read-only product mode. It is not a `subag
 
 Cursor compound slugs such as `claude-opus-5-5-xhigh`, `grok-4.7-xhigh-fast`, `cursor-grok-*`, and `composer-*` are not WorkBuddy model ids. Do not pass them.
 
-Read the role line in `~/.workbuddy/pstack-models.md`. `/pstack:setup-pstack` writes that file. The `SessionStart` hook injects it. WorkBuddy does not auto-load a rules directory for this file. If the file or the line is missing, omit `model` and say which role had no line.
+Read the role line in `~/.workbuddy/pstack-models.md`. `/cat-pstack:setup-pstack` writes that file. The `SessionStart` hook injects it. WorkBuddy does not auto-load a rules directory for this file. If the file or the line is missing, omit `model` and say which role had no line.
 
 `inherit` and `auto` in that file mean omit `model`. A panel line is a list. One subagent runs per entry. `arena cross-judge pool` picks one entry whose model family differs from the parent when it can.
 
@@ -61,7 +61,7 @@ Confirmed ids come from `~/.workbuddy/models.json` (`id` fields only) or from th
 
 WorkBuddy has no Custom Mode, and no Option+Enter or Alt+Enter binding that pins a skill.
 
-The plugin's `UserPromptSubmit` hook is the stand-in. A prompt that starts with `/pstack:poteto-mode` or `/poteto-mode` turns the mode on for that `session_id`. Later prompts in the session get the skill injected again until `/pstack:poteto-mode off` or `exit poteto-mode`. `SessionStart` repeats a short reminder if that session is still on.
+The plugin's `UserPromptSubmit` hook is the stand-in. A prompt that starts with `/cat-pstack:poteto-mode` or `/poteto-mode` turns the mode on for that `session_id`. Later prompts in the session get the skill injected again until `/cat-pstack:poteto-mode off` or `exit poteto-mode`. `SessionStart` repeats a short reminder if that session is still on.
 
 Built-in interaction modes (ask, plan, craft, expert) are not a third-party mode slot. Do not add a `fragments/` directory or a `category` of `interaction` to imitate them.
 
@@ -79,7 +79,7 @@ When a step needs one of these, write one line, `Skipped on WorkBuddy: <step>. <
 | Bugbot, agentic security review | No Bugbot product. Triage existing review threads with the forge command the step names. Skip a step that starts, waits for, or configures Bugbot. |
 | Cursor Automations, `update_state` routines, `api2.cursor.sh` webhooks, `SendToUser` secret-request | Skip. |
 | Cursor cloud agents and the cloud dashboard | `isolation: "worktree"` or `EnterWorktree` when that tool exists. Skip dashboard status and "runs while the laptop is closed". |
-| `cursor-team-kit` (`/deslop`, `control-cli`, `control-ui`) | No such plugin. For `/deslop`, review the diff yourself and run `/pstack:no-comments`. For control skills, use a project `verify-*` skill if one exists. |
+| `cursor-team-kit` (`/deslop`, `control-cli`, `control-ui`) | No such plugin. For `/deslop`, review the diff yourself and run `/cat-pstack:no-comments`. For control skills, use a project `verify-*` skill if one exists. |
 | Built-in `create-skill` and built-in babysit | Use the authoring-a-skill playbook, and the Babysit playbook. |
 | Cursor Plan Mode / Projects | Use WorkBuddy's built-in plan interaction mode if the user already turned it on. This plugin does not switch it. There is no Cursor Project object. Orchestrate is a local coordinator plus worktree subagents. |
 | Built-in PR tool | Use the forge CLI the step names (`gh`, or `origin` when it is installed). |

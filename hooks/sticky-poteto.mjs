@@ -1,6 +1,6 @@
 // Keep /poteto-mode in context on later turns. WorkBuddy has no Custom Mode.
-// A prompt that starts with /pstack:poteto-mode or /poteto-mode turns the session on.
-// /pstack:poteto-mode off, or "exit poteto-mode", turns it off.
+// A prompt that starts with /cat-pstack:poteto-mode or /poteto-mode turns the session on.
+// /cat-pstack:poteto-mode off, or "exit poteto-mode", turns it off.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,7 +34,7 @@ try {
 		if (action) {
 			emit(
 				"UserPromptSubmit",
-				"The UserPromptSubmit hook did not receive session_id, so poteto-mode cannot stay sticky. WorkBuddy has no Custom Mode. Re-invoke /pstack:poteto-mode on the next task.",
+				"The UserPromptSubmit hook did not receive session_id, so poteto-mode cannot stay sticky. WorkBuddy has no Custom Mode. Re-invoke /cat-pstack:poteto-mode on the next task.",
 			);
 		} else {
 			emit("UserPromptSubmit", "");
@@ -55,8 +55,8 @@ try {
 
 	const context = [
 		"pstack poteto-mode is sticky for this session.",
-		"WorkBuddy has no Custom Mode. This hook re-injects the skill on every user prompt until the user sends `/pstack:poteto-mode off` (or `exit poteto-mode`).",
-		"Follow the skill below for this turn, including playbook selection. Spawn playbook delegates with subagent_type `pstack:poteto-agent`.",
+		"WorkBuddy has no Custom Mode. This hook re-injects the skill on every user prompt until the user sends `/cat-pstack:poteto-mode off` (or `exit poteto-mode`).",
+		"Follow the skill below for this turn, including playbook selection. Spawn playbook delegates with subagent_type `cat-pstack:poteto-agent`.",
 		"Cursor model ids are not WorkBuddy model ids. Use ~/.workbuddy/pstack-models.md when it exists, otherwise omit Agent `model`.",
 		"<pstack_poteto_mode>",
 		skillBody(),

@@ -1,7 +1,14 @@
-pstack-workbuddy is an unofficial community port of pstack for Tencent WorkBuddy.
+cat-pstack is an unofficial community port of pstack for Tencent WorkBuddy.
 
 The pstack skill, agent, and guide text is Copyright (c) 2026 Lauren Tan, used under the MIT license in the LICENSE file. Upstream: https://github.com/cursor/plugins/tree/main/pstack
 
 This repository is not affiliated with, endorsed by, or maintained by Cursor or Tencent.
 
-Port-specific files (the port and validation scripts, hooks, install docs, the WorkBuddy harness notes, and CI) are Copyright (c) 2026 pstack-pro and are covered by the same MIT license.
+cat-pstack is a fork of pstack-pro/pstack-workbuddy (commit aabc358). Port-specific files inherited from that fork (the port and validation scripts, hooks, install docs, the WorkBuddy harness notes, and CI) are Copyright (c) 2026 pstack-pro and are covered by the same MIT license.
+
+Changes made in this fork, each documented in PORTING.md:
+
+- Fixed conflicting `subagent_type` values in `skills/how`, `skills/interrogate`, and `skills/reflect`, caused by a blanket `readonly:` -> `subagent_type:` substitution.
+- Restored the `automations/benny/` pack (12 files) that the upstream port dropped, adapted its paths, and added `automations/benny/WORKBUDDY.md` describing its real capability boundaries on WorkBuddy.
+- Renamed the plugin to `cat-pstack`, so commands are `/cat-pstack:<skill>`.
+- Fixed `scripts/validate.mjs` hard-coding the old plugin name, and added three regression guards for the defects above.

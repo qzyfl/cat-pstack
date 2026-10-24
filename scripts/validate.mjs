@@ -198,11 +198,25 @@ if (!license.includes("Copyright (c) 2026 Lauren Tan")) problems.push("LICENSE i
 if (!fs.existsSync(path.join(root, "NOTICE"))) problems.push("NOTICE missing");
 const manifestDir = path.join(root, ".workbuddy-plugin");
 const plugin = JSON.parse(fs.readFileSync(path.join(manifestDir, "plugin.json"), "utf8"));
-if (plugin.name !== "pstack") problems.push("plugin.json name must stay pstack so commands are /pstack:<skill>");
+const PLUGIN_NAME = "cat-pstack";
+if (plugin.name !== PLUGIN_NAME) problems.push(`plugin.json name must stay ${PLUGIN_NAME} so commands are /${PLUGIN_NAME}:<skill>`);
 if (plugin.version !== upstream.pstack) problems.push(`plugin.json version ${plugin.version} != upstream ${upstream.pstack}`);
 if (!fs.existsSync(path.join(manifestDir, "marketplace.json"))) problems.push("missing .workbuddy-plugin/marketplace.json");
+const marketplace = JSON.parse(fs.readFileSync(path.join(manifestDir, "marketplace.json"), "utf8"));
+if (marketplace.name !== PLUGIN_NAME) problems.push(`marketplace.json name must be ${PLUGIN_NAME}`);
+const listed = (marketplace.plugins || []).map((item) => item && item.name);
+if (!listed.includes(PLUGIN_NAME)) problems.push(`marketplace.json must list ${PLUGIN_NAME}`);
 const banned = ["code", "buddy"].join("");
 if (fs.existsSync(path.join(root, `.${banned}-plugin`))) problems.push("remove the extra manifest directory");
+
+function walkMd(dir, fn) {
+	if (!fs.existsSync(dir)) return;
+	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+		const full = path.join(dir, entry.name);
+		if (entry.isDirectory()) walkMd(full, fn);
+		else if (entry.name.endsWith(".md")) fn(full);
+	}
+}
 
 function hook(script, input, env) {
 	return spawnSync(process.execPath, [path.join(root, "hooks", script)], {
@@ -242,12 +256,12 @@ if (!startText.includes("docs/harness/workbuddy.md") && !startText.includes("not
 if (!startText.includes("feature, refactoring: inherit")) problems.push("session-start did not inject the model rule");
 if (!startText.includes("/tmp/t.jsonl")) problems.push("session-start did not pass transcript_path");
 
-const help = hookJson(hook("sticky-poteto.mjs", { hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: "/pstack:poteto-help what is /poteto-mode" }, env), "sticky help");
+const help = hookJson(hook("sticky-poteto.mjs", { hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: "/cat-pstack:poteto-help what is /poteto-mode" }, env), "sticky help");
 if ((help?.hookSpecificOutput?.additionalContext || "").includes("<pstack_poteto_mode>")) {
 	problems.push("a help prompt turned poteto-mode on");
 }
-const on = hookJson(hook("sticky-poteto.mjs", { hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: "/pstack:poteto-mode fix the bug" }, env), "sticky on");
-if (!(on?.hookSpecificOutput?.additionalContext || "").includes("sticky")) problems.push("entering /pstack:poteto-mode did not stick");
+const on = hookJson(hook("sticky-poteto.mjs", { hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: "/cat-pstack:poteto-mode fix the bug" }, env), "sticky on");
+if (!(on?.hookSpecificOutput?.additionalContext || "").includes("sticky")) problems.push("entering /cat-pstack:poteto-mode did not stick");
 const later = hookJson(hook("sticky-poteto.mjs", { hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: "keep going" }, env), "sticky later");
 if (!(later?.hookSpecificOutput?.additionalContext || "").includes("<pstack_poteto_mode>")) {
 	problems.push("a later turn did not re-inject poteto-mode");
@@ -256,7 +270,7 @@ const other = hookJson(hook("sticky-poteto.mjs", { hook_event_name: "UserPromptS
 if ((other?.hookSpecificOutput?.additionalContext || "").includes("<pstack_poteto_mode>")) {
 	problems.push("sticky mode leaked into another session");
 }
-hook("sticky-poteto.mjs", { hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: "/pstack:poteto-mode off" }, env);
+hook("sticky-poteto.mjs", { hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: "/cat-pstack:poteto-mode off" }, env);
 const after = hookJson(hook("sticky-poteto.mjs", { hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: "hello again" }, env), "sticky off");
 if ((after?.hookSpecificOutput?.additionalContext || "").includes("<pstack_poteto_mode>")) {
 	problems.push("poteto-mode stayed on after off");
@@ -291,7 +305,7 @@ function scanBanned(dir) {
 const BUNDLE_ALLOWED_EXT = new Set([".md", ".txt", ".json", ".ts", ".mjs", ".js", ".sh", ".py", ".yaml", ".yml"]);
 
 function scanBundleZip() {
-	const zipPath = path.join(root, "dist", `pstack-${upstream.pstack}.zip`);
+	const zipPath = path.join(root, "dist", `${PLUGIN_NAME}-${upstream.pstack}.zip`);
 	if (!fs.existsSync(zipPath)) {
 		problems.push("bundle zip was not written");
 		return;
@@ -320,6 +334,66 @@ const bundled = spawnSync(process.execPath, [path.join(root, "scripts", "bundle.
 });
 if (bundled.status !== 0) problems.push("SkillHub bundle check failed");
 else scanBundleZip();
+
+// ---------------------------------------------------------------------------
+// Regression guards for defects found in the upstream WorkBuddy port
+// (pstack-pro/pstack-workbuddy @ aabc358). Each one is a bug that shipped.
+// ---------------------------------------------------------------------------
+
+// 1. A sentence must never carry two conflicting subagent_type values. The
+//    upstream port's blind `readonly: true` -> `subagent_type: "Explore"` swap
+//    produced exactly this in how/ and interrogate/.
+{
+	const offenders = [];
+	walkMd(path.join(root, "skills"), (file) => {
+		const text = fs.readFileSync(file, "utf8");
+		for (const line of text.split("\n")) {
+			const hits = line.match(/subagent_type\s*:\s*[`"']?[\w:-]+[`"']?/gu) || [];
+			if (hits.length > 1) {
+				const unique = new Set(hits.map((hit) => hit.replace(/[`"']/gu, "")));
+				if (unique.size > 1) offenders.push(`${path.relative(root, file)}: ${line.trim().slice(0, 90)}`);
+			}
+		}
+	});
+	for (const item of offenders) problems.push(`conflicting subagent_type in one sentence: ${item}`);
+}
+
+// 2. Command prefixes must all use the plugin's own namespace. A stray
+//    `/pstack:` would silently point at a skill that does not exist here.
+{
+	const stale = [];
+	for (const dir of ["skills", "docs/guide", "automations/benny"]) {
+		const abs = path.join(root, dir);
+		if (!fs.existsSync(abs)) continue;
+		walkMd(abs, (file) => {
+			const text = fs.readFileSync(file, "utf8");
+			const matches = text.match(/(?<!cat-)\/pstack:/gu) || [];
+			if (matches.length) stale.push(`${path.relative(root, file)} (${matches.length})`);
+		});
+	}
+	for (const item of stale) problems.push(`stale /pstack: prefix, expected /${PLUGIN_NAME}:: ${item}`);
+}
+
+// 3. The benny automation pack must survive. The upstream port dropped all 12
+//    of its files because only skills/agents/docs were copied.
+{
+	const benny = path.join(root, "automations", "benny");
+	const required = [
+		"FOR_AGENTS.md",
+		"README.md",
+		"WORKBUDDY.md",
+		"skills/setup-benny/SKILL.md",
+		"skills/triage-issue-reports/SKILL.md",
+		"skills/reproduce-and-fix-issues/SKILL.md",
+		"templates/configuration.example.yaml",
+	];
+	if (!fs.existsSync(benny)) problems.push("automations/benny is missing (dropped pack)");
+	else {
+		for (const rel of required) {
+			if (!fs.existsSync(path.join(benny, rel))) problems.push(`automations/benny missing ${rel}`);
+		}
+	}
+}
 
 scanBanned(root);
 

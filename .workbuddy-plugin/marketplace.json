@@ -1,23 +1,24 @@
 {
-  "name": "pstack-workbuddy",
-  "description": "Unofficial community marketplace for the WorkBuddy port of pstack. Not affiliated with Cursor or Tencent.",
+  "name": "cat-pstack",
+  "description": "cat-pstack marketplace: Lauren Tan's pstack agent workflows, ported to WorkBuddy and hardened. Unofficial; not affiliated with Cursor or Tencent.",
   "owner": {
-    "name": "pstack-pro",
-    "url": "https://github.com/pstack-pro/pstack-workbuddy"
+    "name": "qzyfl",
+    "url": "https://github.com/qzyfl"
   },
   "plugins": [
     {
-      "name": "pstack",
+      "name": "cat-pstack",
       "source": "./",
-      "description": "pstack (Lauren Tan / poteto) adapted for WorkBuddy.",
+      "description": "pstack (Lauren Tan / poteto) adapted for WorkBuddy, with the upstream port's defects fixed and its benny automation pack restored.",
       "version": "0.15.32",
       "author": {
         "name": "Lauren Tan"
       },
-      "homepage": "https://github.com/pstack-pro/pstack-workbuddy",
-      "repository": "https://github.com/pstack-pro/pstack-workbuddy",
+      "homepage": "https://github.com/qzyfl/cat-pstack",
+      "repository": "https://github.com/qzyfl/cat-pstack",
       "license": "MIT",
       "keywords": [
+        "cat-pstack",
         "pstack",
         "poteto-mode",
         "workflow"

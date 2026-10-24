@@ -30,12 +30,12 @@ try {
 			"pstack on WorkBuddy. Read docs/harness/workbuddy.md from the plugin root. Cursor model ids are not WorkBuddy model ids.",
 		models
 			? `<pstack_models file="${modelsPath}">\n${models}\n</pstack_models>`
-			: `No ${modelsPath}. Role lines are missing, so omit Agent \`model\` (inherit the parent) and say so, or run /pstack:setup-pstack.`,
+			: `No ${modelsPath}. Role lines are missing, so omit Agent \`model\` (inherit the parent) and say so, or run /cat-pstack:setup-pstack.`,
 	];
 	if (input.transcript_path) parts.push(`Current transcript: ${input.transcript_path}`);
 	if (isOn(input.session_id)) {
 		parts.push(
-			"poteto-mode is sticky for this session. Follow skills/poteto-mode/SKILL.md. WorkBuddy has no Custom Mode. Turn it off with /pstack:poteto-mode off.",
+			"poteto-mode is sticky for this session. Follow skills/poteto-mode/SKILL.md. WorkBuddy has no Custom Mode. Turn it off with /cat-pstack:poteto-mode off.",
 		);
 	}
 	emit(input.hook_event_name || "SessionStart", parts.join("\n\n"));

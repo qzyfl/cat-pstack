@@ -1,20 +1,23 @@
 {
-  "name": "pstack",
+  "name": "cat-pstack",
   "version": "0.15.32",
-  "description": "Unofficial WorkBuddy port of pstack (Lauren Tan / poteto). Rigorous agent workflows. Not affiliated with Cursor or Tencent.",
+  "description": "cat-pstack: Lauren Tan's pstack agent workflows, ported to WorkBuddy and hardened. 58 skills, 2 agents, 23 playbooks, 24 principles. Not affiliated with Cursor or Tencent.",
   "author": {
     "name": "Lauren Tan",
     "url": "https://github.com/cursor/plugins/tree/main/pstack"
   },
-  "homepage": "https://github.com/pstack-pro/pstack-workbuddy",
-  "repository": "https://github.com/pstack-pro/pstack-workbuddy",
+  "homepage": "https://github.com/qzyfl/cat-pstack",
+  "repository": "https://github.com/qzyfl/cat-pstack",
   "license": "MIT",
   "keywords": [
+    "cat-pstack",
     "pstack",
     "poteto-mode",
     "workflow",
     "principles",
     "workbuddy"
   ],
+  "skills": "./skills/",
+  "agents": "./agents/",
   "category": "development"
 }

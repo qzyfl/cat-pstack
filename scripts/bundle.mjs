@@ -12,13 +12,13 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const check = process.argv.includes("--check");
-const SLUG = "pstack";
-const HOMEPAGE = "https://github.com/pstack-pro/pstack-workbuddy";
+const SLUG = "cat-pstack";
+const HOMEPAGE = "https://github.com/qzyfl/cat-pstack";
 const SLUG_RE = /^[a-z0-9-]{2,128}$/;
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const MAX_FILES = 200;
 const MAX_BYTES = 10 * 1024 * 1024;
-const COPY_DIRS = ["skills", "docs", "agents"];
+const COPY_DIRS = ["skills", "docs", "agents", "automations"];
 const COPY_FILES = ["README.md", "PORTING.md", "LICENSE", "NOTICE"];
 const RENAMES = {
 	LICENSE: "LICENSE.md",
@@ -63,7 +63,7 @@ const BLOCKED_EXT = new Set([
 	".so",
 	".dylib",
 ]);
-const TAGS = ["pstack", "poteto", "workbuddy", "workflow", "agent-skills", "code-review", "verification"];
+const TAGS = ["cat-pstack", "pstack", "poteto", "workbuddy", "workflow", "agent-skills", "code-review", "verification"];
 
 function fail(message) {
 	console.error(`bundle: ${message}`);
@@ -114,7 +114,7 @@ function getField(lines, key) {
 }
 
 function purpose(description) {
-	const desc = description.replaceAll("/pstack:", "/");
+	const desc = description.replaceAll("/cat-pstack:", "/");
 	const sentences = desc
 		.split(/(?<=[.!?])\s+(?=[A-Z`/])/)
 		.map((item) => item.trim())
@@ -181,7 +181,8 @@ function loadSkills() {
 function render(text, version, count, index) {
 	let next = text.replace(/^version:.*$/m, `version: ${version}`);
 	next = next.replace(/^slug:.*$/m, `slug: ${SLUG}`);
-	next = next.replace(/^name:.*$/m, "name: pstack");
+	next = next.replace(/^displayName:.*$/m, `displayName: "${SLUG}"`);
+	next = next.replace(/^name:.*$/m, `name: ${SLUG}`);
 	const swaps = [
 		[/ported to WorkBuddy: \d+ skills/u, `ported to WorkBuddy: ${count} skills`],
 		[/the \d+ bundled pstack skills/u, `the ${count} bundled pstack skills`],
@@ -212,12 +213,12 @@ function assertFrontmatter(text, version) {
 		license: getField(lines, "license"),
 		homepage: getField(lines, "homepage"),
 	};
-	if (fields.name !== "pstack") fail(`root skill name is ${fields.name}`);
+	if (fields.name !== SLUG) fail(`root skill name is ${fields.name}`);
 	if (fields.slug !== SLUG) fail(`root skill slug is ${fields.slug}`);
 	if (!SLUG_RE.test(fields.slug)) fail(`slug does not match ${SLUG_RE}`);
 	if (fields.version !== version) fail(`root skill version ${fields.version} != ${version}`);
 	if (!SEMVER.test(fields.version)) fail(`version ${fields.version} is not SemVer`);
-	if (fields.displayName !== "pstack") fail("displayName must stay pstack");
+	if (fields.displayName !== SLUG) fail(`displayName must stay ${SLUG}`);
 	if (fields.license !== "MIT") fail("license must stay MIT");
 	if (fields.homepage !== HOMEPAGE) fail("homepage changed");
 	if (!fields.summary || !fields.description) fail("summary and description are required");
@@ -412,9 +413,9 @@ try {
 	const dist = path.join(root, "dist");
 	fs.mkdirSync(dist, { recursive: true });
 	for (const entry of fs.readdirSync(dist)) {
-		if (/^pstack-.*\.zip$/u.test(entry)) fs.unlinkSync(path.join(dist, entry));
+		if (new RegExp(`^${SLUG}-.*\\.zip$`, "u").test(entry)) fs.unlinkSync(path.join(dist, entry));
 	}
-	const zipPath = path.join(dist, `pstack-${version}.zip`);
+	const zipPath = path.join(dist, `${SLUG}-${version}.zip`);
 	const names = copied.map((file) => path.relative(stage, file).split(path.sep).join("/")).sort();
 	execFileSync("zip", ["-X", "-q", zipPath, "-@"], {
 		cwd: stage,
